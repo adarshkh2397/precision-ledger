@@ -16,25 +16,18 @@ This application is built with a React frontend, Express backend, and SQLite dat
    ```bash
    npm install
    ```
-
-3. **Set Up Environment Variables**
-   Create a `.env` file in the root directory and add your Gemini API key (optional, for AI features):
-   ```env
-   GEMINI_API_KEY=your_api_key_here
-   ```
-
-4. **Start the Development Server**
+3. **Start the Development Server**
    Run the following command to start both the Express backend and Vite frontend:
    ```bash
    npm run dev
    ```
 
-5. **Access the Application**
+4. **Access the Application**
    Open your browser and navigate to:
    `http://localhost:3000`
 
 ## Database
-The application uses a local SQLite database file named `precision_ledger.db`. It will be automatically created on the first run.
+The application uses a local PostgreSQL database file named `precision_ledger.db`. It will be automatically created on the first run.
 
 ## Build for Production
 To create a production-ready build:
