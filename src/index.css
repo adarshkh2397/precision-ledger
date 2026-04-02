@@ -1,0 +1,104 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+
+@theme {
+  --font-headline: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-label: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+
+  --color-primary: #0f172a;
+  --color-on-primary: #ffffff;
+  
+  --color-secondary: #64748b;
+  --color-accent: #3b82f6;
+  --color-error: #ef4444;
+  --color-success: #10b981;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 font-body selection:bg-primary/10 selection:text-primary transition-colors duration-300 text-[13px] antialiased;
+  }
+  
+  .dark body {
+    @apply bg-slate-950 text-slate-100;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-headline;
+  }
+}
+
+/* Datepicker Custom Styles */
+.react-datepicker {
+  @apply !bg-white dark:!bg-slate-900 !border-slate-200 dark:!border-slate-800 !rounded-2xl !shadow-2xl !font-sans !overflow-hidden !border;
+}
+
+.react-datepicker__header {
+  @apply !bg-slate-50 dark:!bg-slate-950 !border-slate-100 dark:!border-slate-800 !pt-8 !pb-2 !border-b relative;
+}
+
+.react-datepicker__navigation {
+  @apply !top-2;
+}
+
+.react-datepicker__navigation--previous {
+  @apply !left-2;
+}
+
+.react-datepicker__navigation--next {
+  @apply !right-2;
+}
+
+.react-datepicker__current-month {
+  @apply !text-slate-900 dark:!text-slate-100 !text-xs !font-bold !uppercase !tracking-widest;
+}
+
+.react-datepicker__day-name {
+  @apply !text-slate-400 dark:!text-slate-500 !text-[10px] !font-bold !uppercase !w-8;
+}
+
+.react-datepicker__day {
+  @apply !text-slate-700 dark:!text-slate-300 !text-xs !font-semibold !w-8 !h-8 !leading-8 !rounded-lg hover:!bg-slate-100 dark:hover:!bg-slate-800 transition-colors;
+}
+
+.react-datepicker__day--selected {
+  @apply !bg-primary !text-white hover:!bg-primary/90 !font-bold;
+}
+
+.react-datepicker__day--keyboard-selected {
+  @apply !bg-primary/10 !text-primary;
+}
+
+.react-datepicker__day--outside-month {
+  @apply !text-slate-200 dark:!text-slate-700;
+}
+
+.custom-datepicker .react-datepicker-wrapper {
+  @apply w-full;
+}
+
+input:focus, select:focus, textarea:focus {
+  @apply outline-none ring-1 ring-primary/20 border-primary/30 transition-all;
+}
+
+.dark input:focus, .dark select:focus, .dark textarea:focus {
+  @apply ring-primary/40 border-primary/50;
+}
+
+/* Remove spin buttons from number inputs */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type=number] {
+  -moz-appearance: textfield;
+}
