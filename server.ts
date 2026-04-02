@@ -8,6 +8,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const { Pool } = pg;
+pg.types.setTypeParser(pg.types.builtins.DATE, (val) => val);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -20,9 +21,13 @@ const pool = new Pool({
   database: process.env.DB_NAME,
 });
 
+pool.on('error', (error) => {
+  console.error('Unexpected PostgreSQL pool error:', error);
+});
+
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = parseInt(process.env.PORT || '3000', 10);
 
   app.use(express.json());
 
@@ -71,14 +76,15 @@ async function startServer() {
   });
 
   app.post('/api/suppliers', async (req, res) => {
-    const { name, contact, phone, gst_number, invoice_format } = req.body;
+    const { name, phone, gst_number, invoice_format } = req.body;
     try {
       const result = await pool.query(
-        'INSERT INTO suppliers (name, contact, phone, gst_number, invoice_format) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-        [name, contact, phone, gst_number, invoice_format]
+        'INSERT INTO suppliers (name, phone, gst_number, invoice_format) VALUES ($1, $2, $3, $4) RETURNING id',
+        [name, phone, gst_number, invoice_format]
       );
       res.json({ id: result.rows[0].id });
     } catch (error) {
+      console.error('Supplier creation error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -88,8 +94,8 @@ async function startServer() {
     const { name, contact, phone, gst_number, invoice_format } = req.body;
     try {
       await pool.query(
-        'UPDATE suppliers SET name = $1, contact = $2, phone = $3, gst_number = $4, invoice_format = $5 WHERE id = $6',
-        [name, contact, phone, gst_number, invoice_format, id]
+        'UPDATE suppliers SET name = $1, phone = $2, gst_number = $3, invoice_format = $4 WHERE id = $5',
+        [name, phone, gst_number, invoice_format, id]
       );
       res.json({ success: true });
     } catch (error) {
@@ -111,7 +117,8 @@ async function startServer() {
   app.get('/api/purchases', async (req, res) => {
     try {
       const result = await pool.query(`
-        SELECT p.*, s.name as supplier_name 
+        SELECT p.*, s.name as supplier_name,
+               (p.cgst_amount + p.sgst_amount) AS tax_amount
         FROM purchase_invoices p
         JOIN suppliers s ON p.supplier_id = s.id
         ORDER BY p.date DESC
@@ -123,18 +130,24 @@ async function startServer() {
   });
 
   app.post('/api/purchases', async (req, res) => {
-    const { supplier_id, invoice_number, date, taxable_amount, tax_amount, gross_total, transport_charge, grand_total } = req.body;
-    
+    const { supplier_id, invoice_number, date, taxable_amount, gst_percent, cgst_amount, sgst_amount, gross_total, transport_charge, grand_total } = req.body;
+    const rate = Number(gst_percent ?? 2.5) || 2.5;
+    const taxable = Number(taxable_amount) || 0;
+    const cgst = Number(cgst_amount ?? (taxable * rate / 100)) || 0;
+    const sgst = Number(sgst_amount ?? (taxable * rate / 100)) || 0;
+    const grossTotal = Number(gross_total ?? taxable + cgst + sgst) || taxable + cgst + sgst;
+    const grandTotal = Number(grand_total ?? grossTotal + Number(transport_charge || 0)) || grossTotal + Number(transport_charge || 0);
+
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
       
       await client.query(`
-        INSERT INTO purchase_invoices (supplier_id, invoice_number, date, taxable_amount, tax_amount, gross_total, transport_charge, grand_total)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      `, [supplier_id, invoice_number, date, taxable_amount, tax_amount, gross_total, transport_charge, grand_total]);
+        INSERT INTO purchase_invoices (supplier_id, invoice_number, date, taxable_amount, gst_percent, cgst_amount, sgst_amount, gross_total, transport_charge, grand_total)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `, [supplier_id, invoice_number, date, taxable, rate, cgst, sgst, grossTotal, transport_charge, grandTotal]);
 
-      await client.query('UPDATE suppliers SET current_balance = current_balance + $1 WHERE id = $2', [grand_total, supplier_id]);
+      await client.query('UPDATE suppliers SET current_balance = current_balance + $1 WHERE id = $2', [grandTotal, supplier_id]);
 
       await client.query('COMMIT');
       res.json({ success: true });
@@ -149,7 +162,13 @@ async function startServer() {
 
   app.put('/api/purchases/:id', async (req, res) => {
     const { id } = req.params;
-    const { supplier_id, invoice_number, date, taxable_amount, tax_amount, gross_total, transport_charge, grand_total } = req.body;
+    const { supplier_id, invoice_number, date, taxable_amount, gst_percent, cgst_amount, sgst_amount, gross_total, transport_charge, grand_total } = req.body;
+    const rate = Number(gst_percent ?? 2.5) || 2.5;
+    const taxable = Number(taxable_amount) || 0;
+    const cgst = Number(cgst_amount ?? (taxable * rate / 100)) || 0;
+    const sgst = Number(sgst_amount ?? (taxable * rate / 100)) || 0;
+    const grossTotal = Number(gross_total ?? taxable + cgst + sgst) || taxable + cgst + sgst;
+    const grandTotal = Number(grand_total ?? grossTotal + Number(transport_charge || 0)) || grossTotal + Number(transport_charge || 0);
     
     const client = await pool.connect();
     try {
@@ -165,12 +184,12 @@ async function startServer() {
         // Update invoice
         await client.query(`
           UPDATE purchase_invoices 
-          SET supplier_id = $1, invoice_number = $2, date = $3, taxable_amount = $4, tax_amount = $5, gross_total = $6, transport_charge = $7, grand_total = $8
-          WHERE id = $9
-        `, [supplier_id, invoice_number, date, taxable_amount, tax_amount, gross_total, transport_charge, grand_total, id]);
+          SET supplier_id = $1, invoice_number = $2, date = $3, taxable_amount = $4, gst_percent = $5, cgst_amount = $6, sgst_amount = $7, gross_total = $8, transport_charge = $9, grand_total = $10
+          WHERE id = $11
+        `, [supplier_id, invoice_number, date, taxable, rate, cgst, sgst, grossTotal, transport_charge, grandTotal, id]);
 
         // Add new balance
-        await client.query('UPDATE suppliers SET current_balance = current_balance + $1 WHERE id = $2', [grand_total, supplier_id]);
+        await client.query('UPDATE suppliers SET current_balance = current_balance + $1 WHERE id = $2', [grandTotal, supplier_id]);
       }
 
       await client.query('COMMIT');
@@ -295,10 +314,19 @@ async function startServer() {
     }
   });
 
+  const HMR_PORT = parseInt(process.env.HMR_PORT || '24679', 10);
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {
+    console.log(`Starting Vite middleware with HMR port ${HMR_PORT}`);
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: {
+          port: HMR_PORT,
+          host: 'localhost',
+        },
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);

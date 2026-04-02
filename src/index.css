@@ -8,13 +8,13 @@
   --font-label: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
 
-  --color-primary: #0f172a;
+  --color-primary: #2563eb;
   --color-on-primary: #ffffff;
   
-  --color-secondary: #64748b;
-  --color-accent: #3b82f6;
+  --color-secondary: #475569;
+  --color-accent: #0ea5e9;
   --color-error: #ef4444;
-  --color-success: #10b981;
+  --color-success: #16a34a;
 }
 
 @layer base {

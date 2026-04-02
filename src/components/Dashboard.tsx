@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Card, Button } from './ui/Common';
-import { formatCurrency } from '../lib/utils';
+import { formatCurrency, formatDisplayDate } from '../lib/utils';
 import { DashboardSummary } from '../types';
 
 export const Dashboard = () => {
@@ -35,15 +35,15 @@ export const Dashboard = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="font-headline text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Executive Summary</h1>
-          <p className="text-slate-400 dark:text-slate-500 font-body mt-1 flex items-center gap-2 text-xs font-medium">
+          <p className="text-slate-400 dark:text-slate-300 font-body mt-1 flex items-center gap-2 text-xs font-medium">
             <CalendarDays size={14} className="text-primary" />
             Performance overview for current cycle
           </p>
         </div>
         <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-900 rounded-xl w-fit shadow-inner">
           <button className="px-4 py-1.5 bg-white dark:bg-slate-800 shadow-sm rounded-lg text-[10px] font-bold text-primary transition-all">Monthly</button>
-          <button className="px-4 py-1.5 text-slate-400 dark:text-slate-500 text-[10px] font-bold hover:text-primary transition-colors">Quarterly</button>
-          <button className="px-4 py-1.5 text-slate-400 dark:text-slate-500 text-[10px] font-bold hover:text-primary transition-colors">Yearly</button>
+          <button className="px-4 py-1.5 text-slate-400 dark:text-slate-300 text-[10px] font-bold hover:text-primary transition-colors">Quarterly</button>
+          <button className="px-4 py-1.5 text-slate-400 dark:text-slate-300 text-[10px] font-bold hover:text-primary transition-colors">Yearly</button>
         </div>
       </div>
 
@@ -77,8 +77,8 @@ export const Dashboard = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
-        <div className="xl:col-span-8">
+      <div className="grid grid-cols-1 gap-4">
+        <div>
           <Card className="p-0">
             <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
               <h2 className="font-headline text-base font-bold text-slate-900 dark:text-slate-100 tracking-tight">Recent Transactions</h2>
@@ -89,22 +89,22 @@ export const Dashboard = () => {
                 <thead>
                   <tr className="text-left bg-slate-50/50 dark:bg-slate-900/50">
                     <th className="px-6 py-2 font-label text-[9px] uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 font-bold">Invoice #</th>
-                    <th className="px-6 py-2 font-label text-[9px] uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 font-bold">Supplier</th>
-                    <th className="px-6 py-2 font-label text-[9px] uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 font-bold">Date</th>
+                    <th className="px-6 py-2 font-label text-[9px] uppercase tracking-[0.15em] text-slate-400 dark:text-slate-300 font-bold">Supplier</th>
+                    <th className="px-6 py-2 font-label text-[9px] uppercase tracking-[0.15em] text-slate-400 dark:text-slate-300 font-bold">Date</th>
                     <th className="px-6 py-2 font-label text-[9px] uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 font-bold text-right">Amount</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {summary.recentPurchases.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-6 py-8 text-center text-slate-300 dark:text-slate-700 text-xs font-medium italic">No recent transactions found</td>
+                      <td colSpan={4} className="px-6 py-8 text-center text-slate-300 dark:text-slate-300 text-xs font-medium italic">No recent transactions found</td>
                     </tr>
                   ) : (
                     summary.recentPurchases.map((p) => (
                       <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors group">
                         <td className="px-6 py-3 text-xs font-bold tabular-nums text-slate-900 dark:text-slate-100">{p.invoice_number}</td>
                         <td className="px-6 py-3 text-xs text-slate-600 dark:text-slate-400 font-bold">{p.supplier_name}</td>
-                        <td className="px-6 py-3 text-xs text-slate-400 dark:text-slate-500 font-medium">{p.date}</td>
+                        <td className="px-6 py-3 text-xs text-slate-400 dark:text-slate-300 font-medium">{formatDisplayDate(p.date)}</td>
                         <td className="px-6 py-3 text-xs font-bold tabular-nums text-right text-primary">{formatCurrency(p.grand_total)}</td>
                       </tr>
                     ))
@@ -112,16 +112,6 @@ export const Dashboard = () => {
                 </tbody>
               </table>
             </div>
-          </Card>
-        </div>
-
-        <div className="xl:col-span-4 space-y-4">
-          <Card className="p-5 bg-primary text-on-primary relative overflow-hidden">
-            <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
-            <h3 className="font-headline font-bold text-base mb-2 relative">Liquidity Score</h3>
-            <div className="text-3xl font-bold mb-3 relative">98.2%</div>
-            <p className="text-[10px] text-white/70 font-medium relative mb-4">Your financial health is excellent. All tax liabilities are covered.</p>
-            <Button variant="secondary" className="w-full bg-white text-primary hover:bg-white/90 text-[9px] py-1.5" icon={FileDown}>Generate Report</Button>
           </Card>
         </div>
       </div>

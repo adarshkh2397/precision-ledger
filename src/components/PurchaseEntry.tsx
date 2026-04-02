@@ -16,7 +16,7 @@ import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { Card, Button } from './ui/Common';
 import { ConfirmModal } from './ui/Modal';
-import { formatCurrency, cn } from '../lib/utils';
+import { formatCurrency, formatDisplayDate, cn } from '../lib/utils';
 import { Supplier, PurchaseInvoice } from '../types';
 
 export const PurchaseEntry = () => {
@@ -31,12 +31,26 @@ export const PurchaseEntry = () => {
     running_number: '',
     date: new Date(),
     taxable_amount: 0,
-    transport_charge: 0
+    transport_charge: 0,
+    gst_percent: 2.5,
   });
 
   const selectedSupplier = useMemo(() => {
     return suppliers.find(s => s.id.toString() === formData.supplier_id);
   }, [suppliers, formData.supplier_id]);
+
+  const normalizePurchase = (purchase: any): PurchaseInvoice => ({
+    ...purchase,
+    supplier_id: Number(purchase.supplier_id) || 0,
+    taxable_amount: Number(purchase.taxable_amount) || 0,
+    gst_percent: Number(purchase.gst_percent) || 2.5,
+    cgst_amount: Number(purchase.cgst_amount) || 0,
+    sgst_amount: Number(purchase.sgst_amount) || 0,
+    tax_amount: Number(purchase.tax_amount) || 0,
+    transport_charge: Number(purchase.transport_charge) || 0,
+    gross_total: Number(purchase.gross_total) || 0,
+    grand_total: Number(purchase.grand_total) || 0,
+  });
 
   const invoiceParts = useMemo(() => {
     if (!selectedSupplier?.invoice_format || !selectedSupplier.invoice_format.includes('{{n}}')) {
@@ -53,7 +67,9 @@ export const PurchaseEntry = () => {
     }
   }, [formData.running_number, invoiceParts]);
 
-  const fetchPurchases = () => fetch('/api/purchases').then(res => res.json()).then(setPurchases);
+  const fetchPurchases = () => fetch('/api/purchases')
+    .then(res => res.json())
+    .then((data) => setPurchases(data.map(normalizePurchase)));
   const fetchSuppliers = () => fetch('/api/suppliers').then(res => res.json()).then(setSuppliers);
 
   useEffect(() => {
@@ -63,16 +79,17 @@ export const PurchaseEntry = () => {
 
   // Auto-calculation logic
   const calculations = useMemo(() => {
-    const amount = formData.taxable_amount || 0;
-    const transport = formData.transport_charge || 0;
-    const sgst = amount * 0.025;
-    const cgst = amount * 0.025;
+    const amount = Number(formData.taxable_amount) || 0;
+    const transport = Number(formData.transport_charge) || 0;
+    const rate = Number(formData.gst_percent) || 2.5;
+    const cgst = amount * (rate / 100);
+    const sgst = amount * (rate / 100);
     const taxTotal = sgst + cgst;
     const grossTotal = amount + taxTotal;
     const grandTotal = grossTotal + transport;
 
-    return { sgst, cgst, taxTotal, grossTotal, grandTotal };
-  }, [formData.taxable_amount, formData.transport_charge]);
+    return { sgst, cgst, taxTotal, grossTotal, grandTotal, rate };
+  }, [formData.taxable_amount, formData.transport_charge, formData.gst_percent]);
 
   const handleSubmit = async () => {
     if (!formData.supplier_id || !formData.invoice_number || !formData.taxable_amount) {
@@ -88,7 +105,9 @@ export const PurchaseEntry = () => {
       invoice_number: formData.invoice_number,
       date: formData.date.toISOString().split('T')[0],
       taxable_amount: formData.taxable_amount,
-      tax_amount: calculations.taxTotal,
+      gst_percent: formData.gst_percent,
+      cgst_amount: calculations.cgst,
+      sgst_amount: calculations.sgst,
       gross_total: calculations.grossTotal,
       transport_charge: formData.transport_charge,
       grand_total: calculations.grandTotal
@@ -114,7 +133,8 @@ export const PurchaseEntry = () => {
       running_number: '',
       date: new Date(),
       taxable_amount: 0,
-      transport_charge: 0
+      transport_charge: 0,
+      gst_percent: 2.5,
     });
     setIsEditing(null);
   };
@@ -133,8 +153,9 @@ export const PurchaseEntry = () => {
       invoice_number: p.invoice_number,
       running_number: runningNum,
       date: new Date(p.date),
-      taxable_amount: p.taxable_amount,
-      transport_charge: p.transport_charge
+      taxable_amount: Number(p.taxable_amount) || 0,
+      transport_charge: Number(p.transport_charge) || 0,
+      gst_percent: Number(p.gst_percent) || 2.5,
     });
     setIsEditing(p.id);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -161,7 +182,7 @@ export const PurchaseEntry = () => {
           <h1 className="text-2xl font-bold font-headline text-slate-900 dark:text-slate-100 tracking-tight">
             {isEditing ? 'Edit Purchase Invoice' : 'New Purchase Invoice'}
           </h1>
-          <p className="text-slate-400 dark:text-slate-500 font-medium mt-1 text-xs">Standardized entry for supplier invoices with automated GST calculation.</p>
+          <p className="text-slate-400 dark:text-slate-300 font-medium mt-1 text-xs">Standardized entry for supplier invoices with automated GST calculation.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" icon={Printer} className="text-[10px] px-3 py-1.5">Print Draft</Button>
@@ -275,6 +296,34 @@ export const PurchaseEntry = () => {
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+                      <ReceiptText size={14} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-900 dark:text-slate-100">GST Rate</p>
+                      <p className="text-[10px] text-slate-400 font-medium">Adjust CGST/SGST percentage per invoice</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex items-center justify-end gap-2">
+                    <input
+                      tabIndex={5}
+                      value={formData.gst_percent}
+                      onChange={(e) => setFormData({...formData, gst_percent: parseFloat(e.target.value) || 2.5})}
+                      className="w-24 bg-transparent border-none text-right focus:ring-0 font-bold text-sm text-slate-900 dark:text-slate-100 tabular-nums"
+                      placeholder="2.5"
+                      type="number"
+                      step="0.1"
+                      min="0"
+                    />
+                    <span className="text-sm font-bold text-slate-600 dark:text-slate-300">%</span>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
                       <Truck size={14} />
                     </div>
                     <div>
@@ -285,7 +334,7 @@ export const PurchaseEntry = () => {
                 </td>
                 <td className="px-6 py-4">
                   <input 
-                    tabIndex={5}
+                    tabIndex={6}
                     value={formData.transport_charge || ''}
                     onChange={(e) => setFormData({...formData, transport_charge: parseFloat(e.target.value) || 0})}
                     className="w-full bg-transparent border-none text-right focus:ring-0 font-bold text-sm text-slate-900 dark:text-slate-100 tabular-nums" 
@@ -307,13 +356,13 @@ export const PurchaseEntry = () => {
             </div>
             <div className="flex justify-between items-center text-[10px] font-medium text-slate-400 dark:text-slate-500">
               <span className="flex items-center gap-1.5">
-                CGST <span className="text-[8px] bg-slate-100 dark:bg-slate-800 px-1 rounded">2.5%</span>
+                CGST <span className="text-[8px] bg-slate-100 dark:bg-slate-800 px-1 rounded">{calculations.rate}%</span>
               </span>
               <span className="tabular-nums">{formatCurrency(calculations.cgst)}</span>
             </div>
             <div className="flex justify-between items-center text-[10px] font-medium text-slate-400 dark:text-slate-500">
               <span className="flex items-center gap-1.5">
-                SGST <span className="text-[8px] bg-slate-100 dark:bg-slate-800 px-1 rounded">2.5%</span>
+                SGST <span className="text-[8px] bg-slate-100 dark:bg-slate-800 px-1 rounded">{calculations.rate}%</span>
               </span>
               <span className="tabular-nums">{formatCurrency(calculations.sgst)}</span>
             </div>
@@ -333,7 +382,7 @@ export const PurchaseEntry = () => {
             </div>
             <div className="pt-6">
               <Button 
-                tabIndex={6}
+                tabIndex={7}
                 onClick={handleSubmit} 
                 className="w-full py-3 text-xs shadow-xl shadow-primary/20" 
                 icon={Verified}
@@ -367,24 +416,24 @@ export const PurchaseEntry = () => {
             <table className="w-full">
               <thead>
                 <tr className="text-left bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
-                  <th className="px-6 py-3 font-label text-[9px] uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 font-bold">Invoice #</th>
-                  <th className="px-6 py-3 font-label text-[9px] uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 font-bold">Supplier</th>
-                  <th className="px-6 py-3 font-label text-[9px] uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 font-bold">Date</th>
-                  <th className="px-6 py-3 font-label text-[9px] uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 font-bold text-right">Amount</th>
+                  <th className="px-6 py-3 font-label text-[9px] uppercase tracking-[0.15em] text-slate-400 dark:text-slate-300 font-bold">Invoice #</th>
+                  <th className="px-6 py-3 font-label text-[9px] uppercase tracking-[0.15em] text-slate-400 dark:text-slate-300 font-bold">Supplier</th>
+                  <th className="px-6 py-3 font-label text-[9px] uppercase tracking-[0.15em] text-slate-400 dark:text-slate-300 font-bold">Date</th>
+                  <th className="px-6 py-3 font-label text-[9px] uppercase tracking-[0.15em] text-slate-400 dark:text-slate-300 font-bold text-right">Amount</th>
                   <th className="px-6 py-3 font-label text-[9px] uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 font-bold text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {purchases.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-slate-300 dark:text-slate-700 text-xs italic font-medium">No entries recorded yet</td>
+                    <td colSpan={5} className="px-6 py-8 text-center text-slate-300 dark:text-slate-300 text-xs italic font-medium">No entries recorded yet</td>
                   </tr>
                 ) : (
                   purchases.slice(0, 10).map(p => (
                     <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors group">
                       <td className="px-6 py-3 text-xs font-bold tabular-nums text-slate-900 dark:text-slate-100">{p.invoice_number}</td>
                       <td className="px-6 py-3 text-xs text-slate-600 dark:text-slate-400 font-bold">{p.supplier_name}</td>
-                      <td className="px-6 py-3 text-xs text-slate-400 dark:text-slate-500 font-medium">{p.date}</td>
+                      <td className="px-6 py-3 text-xs text-slate-400 dark:text-slate-300 font-medium">{formatDisplayDate(p.date)}</td>
                       <td className="px-6 py-3 text-xs font-bold tabular-nums text-right text-primary">{formatCurrency(p.grand_total)}</td>
                       <td className="px-6 py-3 text-center">
                         <div className="flex justify-center gap-1">

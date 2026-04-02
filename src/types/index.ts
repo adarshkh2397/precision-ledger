@@ -3,7 +3,6 @@ export type Page = 'dashboard' | 'purchases' | 'sales' | 'suppliers' | 'history'
 export interface Supplier {
   id: number;
   name: string;
-  contact: string;
   phone: string;
   gst_number: string;
   invoice_format?: string;
@@ -17,6 +16,9 @@ export interface PurchaseInvoice {
   invoice_number: string;
   date: string;
   taxable_amount: number;
+  gst_percent: number;
+  cgst_amount: number;
+  sgst_amount: number;
   tax_amount: number;
   transport_charge: number;
   gross_total: number;
